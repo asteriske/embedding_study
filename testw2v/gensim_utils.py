@@ -35,8 +35,9 @@ def metrics(gensim_model: Word2VecKeyedVectors) -> Dict[str,Any]:
 
     metrics = {}
     metrics['french_similarity'] = word_similarity(gensim_model,'french')
-    metrics['ship_similarity'] = word_similarity(gensim_model,'ship')
-    metrics['apple_similarity'] = word_similarity(gensim_model,'apple')
+    metrics['december_similarity'] = word_similarity(gensim_model,'december')
+    metrics['street_similarity'] = word_similarity(gensim_model,'street')
+    metrics['boat_similarity'] = word_similarity(gensim_model,'boat')
 
     wordsim353 = gensim_model.wv.evaluate_word_pairs(datapath('wordsim353.tsv'), case_insensitive=True)
     simlex999  = gensim_model.wv.evaluate_word_pairs(datapath('simlex999.txt'), case_insensitive=True)
