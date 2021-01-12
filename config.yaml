@@ -1,0 +1,47 @@
+
+experiments:
+  google_default:
+    batch_size: 1024
+    buffer_size: 10000
+    embedding_dim: 128
+    epochs: 20
+    num_ns: 4
+    seed: 42
+    sequence_length: 10
+    window_size: 2
+    vocab_size: 4096
+
+  gensim_default:
+    alpha: 0.025
+    batch_words: 10000
+    cbow_mean: 1
+    hs: 0
+    iter: 5
+    min_alpha: 0.0001
+    min_count: 5
+    max_vocab_size: null
+    max_final_vocab: null
+    null_word: 0
+    negative: 5 
+    ns_exponent: 0.75
+    sample: 0.001
+    seed: 42
+    size: 100
+    sorted_vocab: 1
+    sg: 1
+    trim_rule: null
+    window: 5
+    workers: 4
+
+  google_news:
+    file: null
+    params: null
+    google_news_url: 'https://s3.amazonaws.com/dl4j-distribution/GoogleNews-vectors-negative300.bin.gz'
+
+
+file: 'wiki_10pct'
+file_uri: ''
+
+runs: ['google_default','gensim_default','google_news']
+
+metrics_path: 'metrics'
