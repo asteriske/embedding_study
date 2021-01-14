@@ -3,8 +3,10 @@ import yaml
 
 CONFIG_FILE = 'config.yaml'
 
-def load():
-    with open(CONFIG_FILE, 'r') as stream:
+def load(config_file=None):
+    if config_file is None:
+        config_file=CONFIG_FILE
+    with open(config_file, 'r') as stream:
         try:
             config = yaml.safe_load(stream)
         except yaml.YAMLError as exc:

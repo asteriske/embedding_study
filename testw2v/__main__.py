@@ -34,6 +34,9 @@ if __name__ == "__main__":
          'google_news': {
             'exp_class': experiment.GoogleNewsExperiment,
             'run_conf': conf['experiments']['google_news']},
+         'gensim_max_final_vocab_4096': {
+            'exp_class': experiment.GensimExperiment,
+            'run_conf': conf['experiments']['gensim_max_final_vocab_4096']},
     }
 
     if not os.path.exists(conf['file']):

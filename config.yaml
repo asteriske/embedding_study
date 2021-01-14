@@ -33,6 +33,28 @@ experiments:
     window: 5
     workers: 4
 
+  gensim_max_final_vocab_4096:
+    alpha: 0.025
+    batch_words: 10000
+    cbow_mean: 1
+    hs: 0
+    iter: 5
+    min_alpha: 0.0001
+    min_count: 5
+    max_vocab_size: null
+    max_final_vocab: 4096 
+    null_word: 0
+    negative: 5 
+    ns_exponent: 0.75
+    sample: 0.001
+    seed: 42
+    size: 100
+    sorted_vocab: 1
+    sg: 1
+    trim_rule: null
+    window: 5
+    workers: 4
+
   google_news:
     file: null
     params: null
@@ -40,8 +62,8 @@ experiments:
 
 
 file: 'wiki_10pct'
-file_uri: ''
+file_uri: 'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
-runs: ['google_default','gensim_default','google_news']
+runs: ['gensim_default']
 
 metrics_path: 'metrics'
