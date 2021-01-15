@@ -50,6 +50,10 @@ class GensimExperiment(Experiment):
         if conf is not None:
             self.conf = conf
 
+        self.sequence_length = None
+        if 'sequence_length' in self.conf.keys():
+            self.sequence_length=self.conf['sequence_length']
+
         super(GensimExperiment).__init__()
 
         if not no_op:
@@ -57,7 +61,9 @@ class GensimExperiment(Experiment):
 
     def build_dataset(self) -> None:
 
-        self.sentences = gensim_utils.GensimSentenceGenerator(self.file)
+
+
+        self.sentences = gensim_utils.GensimSentenceGenerator(self.file,sequence_length=self.sequence_length)
 
 
     def build_model(self) -> None:     

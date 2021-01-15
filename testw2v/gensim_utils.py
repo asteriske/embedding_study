@@ -57,10 +57,16 @@ def metrics(gensim_model: Word2VecKeyedVectors) -> Dict[str,Any]:
 
 class GensimSentenceGenerator():
 
-    def __init__(self, file):
+    def __init__(self, file, sequence_length=None):
         self.file = file 
-
+        self.sequence_length = sequence_length
 
     def __iter__(self) -> Generator[List[str], None, None]:
         for line in open(self.file):
-            yield gensim.utils.simple_preprocess(line)
+
+            if not self.sequence_length:
+                yield gensim.utils.simple_preprocess(line)
+            else:
+                yield gensim.utils.simple_preprocess(line)[0:self.sequence_length]
+
+            
