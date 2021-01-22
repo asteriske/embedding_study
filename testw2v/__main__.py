@@ -40,6 +40,10 @@ if __name__ == "__main__":
          'gensim_max_final_vocab_4096_len_10': {
             'exp_class': experiment.GensimExperiment,
             'run_conf': conf['experiments']['gensim_max_final_vocab_4096_len_10']},
+         'google_mikolov_positives': {
+             'exp_class': experiment.GoogleExampleExperiment,
+             'run_conf': conf['experiments']['google_mikolov_positives']
+         }
     }
 
     if not os.path.exists(conf['file']):

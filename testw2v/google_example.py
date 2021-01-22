@@ -1,3 +1,4 @@
+import math
 import re
 import string
 import tensorflow as tf
@@ -14,18 +15,52 @@ conf_node = conf
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
+
+def count_vocab(text_ds, vocab_size):
+    
+    total_words = 0
+    
+    vocab_counts = [0]*vocab_size
+
+    for i, x in enumerate(text_ds):
+
+        for w in x.numpy():
+            if w != 0:
+                vocab_counts[w] += 1
+                total_words += 1
+
+    return vocab_counts, total_words
+
+
+def subsample(word_count, total_counts):
+    """
+    The positive subsampling strategy of Mikolov et al, 2013
+    """
+
+    frac_this_word = word_count / total_counts
+    
+    if word_count == 0:
+        return 0
+    
+    p_w = ((math.sqrt(frac_this_word/0.001)) + 1)*(0.001/frac_this_word)
+    return min(p_w,1)    
+
+
 def custom_standardization(input_data):
   lowercase = tf.strings.lower(input_data)
   return tf.strings.regex_replace(lowercase,
                                   '[%s]' % re.escape(string.punctuation), '')
 
 
-def generate_training_data(sequences, window_size, num_ns, vocab_size, seed):
+def generate_training_data(sequences, window_size, num_ns, vocab_size, seed, retention_probs):
   # Elements of each training example are appended to these lists.
   targets, contexts, labels = [], [], []
 
   # Build the sampling table for vocab_size tokens.
-  sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(vocab_size)
+  if not retention_probs:
+    sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(vocab_size)
+  else:
+    sampling_table = retention_probs
   
   # Iterate over all sequences (sentences) in dataset.
   for sequence in tqdm.tqdm(sequences):
@@ -97,11 +132,18 @@ def vectorize_text(path_to_file, zipped=False):
 
     if zipped:
         return tf.data.Dataset.zip((text_ds, text_vector_ds))
+
+    retention_probs = None
+
+    if 'mikolov_positive_sample' in conf.keys():
+        if conf['mikolov_positive_sample'] == True:
+            vocab_counts, total_words = count_vocab(text_vector_ds, conf['vocab_size'])
+            retention_probs = [subsample(x, total_words) for x in vocab_counts]
     
-    return text_vector_ds, vectorize_layer
+    return text_vector_ds, vectorize_layer, retention_probs
 
 
-def sequences_to_dataset(text_dataset):
+def sequences_to_dataset(text_dataset, retention_probs=None):
 
     sequences = list(text_dataset.as_numpy_iterator())
     targets, contexts, labels = generate_training_data(
@@ -109,7 +151,8 @@ def sequences_to_dataset(text_dataset):
         window_size=conf['window_size'], 
         num_ns=conf['num_ns'], 
         vocab_size=conf['vocab_size'], 
-        seed=conf['seed'])
+        seed=conf['seed'],
+        retention_probs=retention_probs)
 
     dataset = tf.data.Dataset.from_tensor_slices(((targets, contexts), labels))
     dataset = dataset.shuffle(conf['buffer_size']).batch(conf['batch_size'], drop_remainder=True)
@@ -119,8 +162,8 @@ def sequences_to_dataset(text_dataset):
 
 
 def file_to_dataset(file_path):
-    sequences, vectorize_layer = vectorize_text(file_path)
-    dataset = sequences_to_dataset(sequences)
+    sequences, vectorize_layer, retention_probs = vectorize_text(file_path)
+    dataset = sequences_to_dataset(sequences, retention_probs=retention_probs)
 
     return dataset, vectorize_layer
 

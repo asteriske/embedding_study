@@ -11,6 +11,18 @@ experiments:
     window_size: 2
     vocab_size: 4096
 
+  google_mikolov_positives:
+    batch_size: 1024
+    buffer_size: 10000
+    embedding_dim: 128
+    epochs: 20
+    num_ns: 4
+    seed: 42
+    sequence_length: 10
+    window_size: 2
+    vocab_size: 4096
+    mikolov_positive_sample: true
+
   gensim_default:
     alpha: 0.025
     batch_words: 10000
@@ -87,6 +99,6 @@ experiments:
 file: 'wiki_10pct'
 file_uri: 'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
-runs: ['gensim_default','gensim_max_final_vocab_4096','gensim_max_final_vocab_4096_len_10']
+runs: ['google_default','google_mikolov_positives','gensim_default']
 
 metrics_path: 'metrics'
