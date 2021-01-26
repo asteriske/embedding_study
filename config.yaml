@@ -22,6 +22,7 @@ experiments:
     window_size: 2
     vocab_size: 4096
     mikolov_positive_sample: true
+    mikolov_negative_sample: true
 
   gensim_default:
     alpha: 0.025
@@ -99,6 +100,6 @@ experiments:
 file: 'wiki_10pct'
 file_uri: 'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
-runs: ['google_default','google_mikolov_positives','gensim_default']
+runs: ['google_mikolov_positives', 'google_default', 'gensim_default']
 
 metrics_path: 'metrics'

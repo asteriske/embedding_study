@@ -119,7 +119,7 @@ class GoogleExampleExperiment(Experiment):
 
     def build_dataset(self) -> tf.data.Dataset:
 
-        self.dataset, self.vector_layer = google_example.file_to_dataset(self.file)
+        self.dataset, self.vector_layer = google_example.file_to_dataset(self.file, self.conf)
 
     
     def build_model(self):

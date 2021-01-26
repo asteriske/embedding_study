@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import re
 import string
 import tensorflow as tf
@@ -7,6 +8,7 @@ from tensorflow.keras.layers import Activation, Dense, Dot, Embedding, Flatten, 
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 
 import tqdm
+from typing import List
 
 from testw2v import config
 conf = config.load()['experiments']['google_default']
@@ -28,6 +30,8 @@ def count_vocab(text_ds, vocab_size):
             if w != 0:
                 vocab_counts[w] += 1
                 total_words += 1
+        if i % 10000 == 0:
+            print(f"Counting line {i}")
 
     return vocab_counts, total_words
 
@@ -43,7 +47,16 @@ def subsample(word_count, total_counts):
         return 0
     
     p_w = ((math.sqrt(frac_this_word/0.001)) + 1)*(0.001/frac_this_word)
+
+    # words with frac_this_word <= 0.0024 will have estimated probability > 1
     return min(p_w,1)    
+
+
+def negative_sample(word_count) -> List[float]:
+
+    negative_sampling_numerator = [x**.75 for x in word_count]
+    negative_sampling_probs = [(x**.75)/sum(negative_sampling_numerator) for x in word_count]
+    return negative_sampling_probs
 
 
 def custom_standardization(input_data):
@@ -52,7 +65,7 @@ def custom_standardization(input_data):
                                   '[%s]' % re.escape(string.punctuation), '')
 
 
-def generate_training_data(sequences, window_size, num_ns, vocab_size, seed, retention_probs):
+def generate_training_data(sequences, window_size, num_ns, vocab_size, seed, retention_probs, negative_sample_probs):
   # Elements of each training example are appended to these lists.
   targets, contexts, labels = [], [], []
 
@@ -78,15 +91,21 @@ def generate_training_data(sequences, window_size, num_ns, vocab_size, seed, ret
     for target_word, context_word in positive_skip_grams:
       context_class = tf.expand_dims(
           tf.constant([context_word], dtype="int64"), 1)
-      negative_sampling_candidates, _, _ = tf.random.log_uniform_candidate_sampler(
-          true_classes=context_class,
-          num_true=1, 
-          num_sampled=num_ns, 
-          unique=True, 
-          range_max=vocab_size, 
-          seed=seed, 
-          name="negative_sampling")
-
+      if not negative_sample_probs:
+        negative_sampling_candidates, _, _ = tf.random.log_uniform_candidate_sampler(
+            true_classes=context_class,
+            num_true=1, 
+            num_sampled=num_ns, 
+            unique=True, 
+            range_max=vocab_size, 
+            seed=seed, 
+            name="negative_sampling")
+      else:
+          negative_words = [x for x in range(vocab_size) if x not in (target_word, context_word)]
+          negative_probs = [negative_sample_probs[x] for x in range(vocab_size) if x not in (target_word, context_word)]
+          norm_term = sum(negative_probs)
+          negative_sampling_candidates = tf.constant(
+              np.random.choice(negative_words, num_ns, p=([x/norm_term for x in negative_probs])), dtype=tf.int64)
       # Build context and label vectors (for one target word)
       negative_sampling_candidates = tf.expand_dims(
           negative_sampling_candidates, 1)
@@ -116,7 +135,7 @@ def prepare_vectorize_layer(text_ds):
     return vectorize_layer
 
 
-def vectorize_text(path_to_file, zipped=False):
+def vectorize_text(path_to_file, conf=None, zipped=False):
 
     text_ds = tf.data.TextLineDataset(path_to_file).filter(lambda x: tf.cast(tf.strings.length(x), bool))
 
@@ -140,10 +159,13 @@ def vectorize_text(path_to_file, zipped=False):
             vocab_counts, total_words = count_vocab(text_vector_ds, conf['vocab_size'])
             retention_probs = [subsample(x, total_words) for x in vocab_counts]
     
-    return text_vector_ds, vectorize_layer, retention_probs
+            return text_vector_ds, vectorize_layer, retention_probs, vocab_counts, total_words
+    return text_vector_ds, vectorize_layer, retention_probs, None, None 
+    
 
 
-def sequences_to_dataset(text_dataset, retention_probs=None):
+
+def sequences_to_dataset(text_dataset, retention_probs=None, negative_sample_probs=None):
 
     sequences = list(text_dataset.as_numpy_iterator())
     targets, contexts, labels = generate_training_data(
@@ -152,7 +174,8 @@ def sequences_to_dataset(text_dataset, retention_probs=None):
         num_ns=conf['num_ns'], 
         vocab_size=conf['vocab_size'], 
         seed=conf['seed'],
-        retention_probs=retention_probs)
+        retention_probs=retention_probs,
+        negative_sample_probs=negative_sample_probs)
 
     dataset = tf.data.Dataset.from_tensor_slices(((targets, contexts), labels))
     dataset = dataset.shuffle(conf['buffer_size']).batch(conf['batch_size'], drop_remainder=True)
@@ -161,9 +184,16 @@ def sequences_to_dataset(text_dataset, retention_probs=None):
     return dataset
 
 
-def file_to_dataset(file_path):
-    sequences, vectorize_layer, retention_probs = vectorize_text(file_path)
-    dataset = sequences_to_dataset(sequences, retention_probs=retention_probs)
+def file_to_dataset(file_path, conf):
+    vec_text_values = vectorize_text(file_path, conf=conf)
+    sequences, vectorize_layer, retention_probs, word_counts, total_words = vec_text_values
+    
+    negative_sample_probs=None
+    if 'mikolov_negative_sample' in conf.keys():
+        if conf['mikolov_negative_sample'] == True:
+            negative_sample_probs = negative_sample(word_counts)
+
+    dataset = sequences_to_dataset(sequences, retention_probs=retention_probs, negative_sample_probs=negative_sample_probs)
 
     return dataset, vectorize_layer
 
