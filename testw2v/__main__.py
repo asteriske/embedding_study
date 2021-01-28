@@ -5,6 +5,7 @@ which can build its own dataset, run it, and compute metrics.
 
 import os
 from testw2v import config, experiment, util
+from testw2v.skipgram import skipgram_experiment
 
 conf = config.load()
 
@@ -42,7 +43,10 @@ if __name__ == "__main__":
             'run_conf': conf['experiments']['gensim_max_final_vocab_4096_len_10']},
          'google_mikolov_positives': {
              'exp_class': experiment.GoogleExampleExperiment,
-             'run_conf': conf['experiments']['google_mikolov_positives']}         
+             'run_conf': conf['experiments']['google_mikolov_positives']},
+         'skipgram_google_default': {
+             'exp_class': skipgram_experiment.SkipgramGoogleExperiment,
+             'run_conf': conf['experiments']['skipgram_google_default']}
     }
 
     if not os.path.exists(conf['file']):

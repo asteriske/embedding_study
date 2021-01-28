@@ -103,7 +103,7 @@ class GensimExperiment(Experiment):
 
 class GoogleExampleExperiment(Experiment):
 
-    def __init__(self, file: str, conf: Dict[str, Any]=None, no_op=False):
+    def __init__(self, file: str, conf: Dict[str, Any]=None, no_op: bool=False):
 
         self.file = file
         self.vector_layer = None
@@ -117,7 +117,7 @@ class GoogleExampleExperiment(Experiment):
             self.run_all()
 
 
-    def build_dataset(self) -> tf.data.Dataset:
+    def build_dataset(self) -> None:
 
         self.dataset, self.vector_layer = google_example.file_to_dataset(self.file, self.conf)
 
