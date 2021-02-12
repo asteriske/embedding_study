@@ -5,7 +5,7 @@ which can build its own dataset, run it, and compute metrics.
 
 import os
 from testw2v import config, experiment, util
-from testw2v.skipgram import skipgram_experiment
+from testw2v.skipgram_google import skipgram_experiment
 
 conf = config.load()
 
@@ -46,7 +46,10 @@ if __name__ == "__main__":
              'run_conf': conf['experiments']['google_mikolov_positives']},
          'skipgram_google_default': {
              'exp_class': skipgram_experiment.SkipgramGoogleExperiment,
-             'run_conf': conf['experiments']['skipgram_google_default']}
+             'run_conf': conf['experiments']['skipgram_google_default']},
+         'skipgramv2_google_default': {
+             'exp_class': skipgram_experiment.SkipgramV2GoogleExperiment,
+             'run_conf': conf['experiments']['skipgramv2_google_default']}
     }
 
     if not os.path.exists(conf['file']):
