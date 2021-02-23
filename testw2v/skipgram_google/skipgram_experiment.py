@@ -95,7 +95,7 @@ class SkipgramV2GoogleExperiment(experiment.GoogleExampleExperiment):
             standardize=self.custom_standardization,
             max_tokens=self.conf['vocab_size'],
             output_mode='int',
-            output_sequence_length=self.conf['num_ns'],
+            output_sequence_length=self.conf['sequence_length'],
             vocabulary=list(words_and_counts.keys())[:-2])
         
         text_vector_ds = (                

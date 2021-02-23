@@ -49,7 +49,16 @@ if __name__ == "__main__":
              'run_conf': conf['experiments']['skipgram_google_default']},
          'skipgramv2_google_default': {
              'exp_class': skipgram_experiment.SkipgramV2GoogleExperiment,
-             'run_conf': conf['experiments']['skipgramv2_google_default']}
+             'run_conf': conf['experiments']['skipgramv2_google_default']},
+         'skipgramv2_google_small_batch': {
+             'exp_class': skipgram_experiment.SkipgramV2GoogleExperiment,
+             'run_conf': conf['experiments']['skipgramv2_google_small_batch']},
+         'skipgramv2_google_small_batch_long_seq': {
+             'exp_class': skipgram_experiment.SkipgramV2GoogleExperiment,
+             'run_conf': conf['experiments']['skipgramv2_google_small_batch_long_seq']},
+         'skipgramv2_google_small_batch_low_iter': {
+             'exp_class': skipgram_experiment.SkipgramV2GoogleExperiment,
+             'run_conf': conf['experiments']['skipgramv2_google_small_batch_low_iter']}
     }
 
     if not os.path.exists(conf['file']):
