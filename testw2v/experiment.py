@@ -3,7 +3,7 @@ import gensim
 import json
 import os
 import tensorflow as tf
-from testw2v import config, google_example, gensim_utils, util
+from testw2v import config, google_example, gensim_utils, li2019, util
 from typing import Any, Dict
 conf = config.load()
 
@@ -180,3 +180,58 @@ class GoogleNewsExperiment(Experiment):
         self.metrics['runtime_seconds'] = self.runtime
         self.metrics['conf'] = None
         self.json = json.dumps(self.metrics)
+
+
+class Li2019Experiment(Experiment):
+
+    def __init__(self, file: str, conf: Dict[str, Any]=None, no_op: bool=False):
+
+        self.file = file
+        self.conf = conf
+
+        super(Li2019Experiment).__init__()
+
+        if not no_op:
+            self.run_all()
+
+
+    def build_dataset(self):
+        AUTOTUNE = tf.data.experimental.AUTOTUNE
+        num_ns = self.conf['num_ns']
+        vocab_size = self.conf['vocab_size']
+
+        positive_matrix, negative_matrix, vocab = li2019.build_context_matrices(self.file, self.conf)
+
+        example_generator = li2019.example_iterator_gen(positive_matrix, negative_matrix, self.conf)
+
+        self.dataset = (
+            tf.data.Dataset.from_generator(example_generator,
+                                   output_signature=(
+                                       (tf.TensorSpec(shape=(vocab_size*(num_ns+1),1),dtype=tf.int32),
+                                        tf.TensorSpec(shape=(vocab_size*(num_ns+1),1),dtype=tf.int32)),
+                                        tf.TensorSpec(shape=(vocab_size*(num_ns+1),1),dtype=tf.int32)
+                                   ))
+            .unbatch()
+            .batch(vocab_size)
+            .prefetch(AUTOTUNE)
+        )
+        self.vocab = vocab
+
+
+    def build_model(self):
+
+        self.model = li2019.Word2Vec(vocab_size=self.conf['vocab_size'], 
+                                    embedding_dim=self.conf['embedding_dim'])
+
+
+    def fit(self):
+
+        li2019.generator_training_loop(self.model, self.dataset, self.conf)
+
+
+    def eval(self):
+        weights = self.model.get_layer('w2v_embedding').get_weights()[0]
+        
+        gensim_obj = gensim_utils.w2v_to_gensim(self.vocab, weights)
+
+        self.metrics = gensim_utils.metrics(gensim_obj)

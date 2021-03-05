@@ -265,21 +265,23 @@ class SkipgramV2():
              vocab_size: int,
              frequencies: tf.Tensor,
              num_negative_per_example: int=4,
+             sampling_threshold=0.001
              ):
 
         self.frequencies = tf.cast(frequencies,tf.int32)
         self.num_negative_per_example = num_negative_per_example
+        self.sampling_threshold=sampling_threshold
         self.vocab_size = vocab_size
         self.window = window
         self._positive_probabilities = self._frequencies_to_probabilities()
         self._negative_distribution = self._compute_negative_probabilities(self.frequencies)
 
-    @staticmethod
-    def _single_retention_probability(frac_of_corpus, threshold=0.001):
+    # @staticmethod
+    def _single_retention_probability(self, frac_of_corpus):
         return (
             min(
                 1,
-                (tf.sqrt(frac_of_corpus/threshold) + 1)*threshold/frac_of_corpus
+                (tf.sqrt(frac_of_corpus/self.sampling_threshold) + 1)*self.sampling_threshold/frac_of_corpus
             )
         )
 

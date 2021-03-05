@@ -28,6 +28,7 @@ experiments:
     embedding_dim: 128
     epochs: 20
     num_ns: 4
+    pos_sample_threshold: 0.001
     seed: 42
     sequence_length: 10
     window_size: 2
@@ -39,6 +40,7 @@ experiments:
     embedding_dim: 128
     epochs: 5 
     num_ns: 4
+    pos_sample_threshold: 0.001
     seed: 42
     sequence_length: 10
     window_size: 2
@@ -50,6 +52,7 @@ experiments:
     embedding_dim: 128
     epochs: 5 
     num_ns: 7 
+    pos_sample_threshold: 0.001
     seed: 42
     sequence_length: 200
     window_size: 4
@@ -61,6 +64,7 @@ experiments:
     embedding_dim: 128
     epochs: 20 
     num_ns: 4
+    pos_sample_threshold: 0.001
     seed: 42
     sequence_length: 10
     window_size: 2
@@ -146,6 +150,19 @@ experiments:
     window: 5
     workers: 4
 
+  li_2019_generator:
+    batch_size: 64
+    buffer_size: 10000
+    embedding_dim: 128
+    epochs: 5 
+    num_neg_columns: 4096
+    num_ns: 7 
+    num_pos_columns: 16384
+    sequence_length: 200
+    window_size: 4
+    vocab_size: 4096
+
+
   google_news:
     file: null
     params: null
@@ -155,6 +172,7 @@ experiments:
 file: 'wiki_10pct'
 file_uri: 'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
-runs: ['skipgramv2_google_small_batch_low_iter','skipgramv2_google_small_batch', 'skipgramv2_google_small_batch_long_seq', 'gensim_default', 'gensim_max_final_vocab_4096_len_10', 'google_default' ]
+runs: ['li_2019_generator', 'skipgramv2_google_small_batch_long_seq', 'gensim_default', 'google_default' ]
 
 metrics_path: 'metrics'
+log_level: 'INFO'

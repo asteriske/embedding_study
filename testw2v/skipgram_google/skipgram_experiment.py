@@ -89,7 +89,8 @@ class SkipgramV2GoogleExperiment(experiment.GoogleExampleExperiment):
         self.skipgram = SkipgramV2(window=self.conf['window_size'],
             vocab_size=self.conf['vocab_size'],
             frequencies=word_counts,
-            num_negative_per_example=self.conf['num_ns'])
+            num_negative_per_example=self.conf['num_ns'],
+            sampling_threshold=self.conf['pos_sample_threshold'])
 
         vectorize_layer = TextVectorization(
             standardize=self.custom_standardization,

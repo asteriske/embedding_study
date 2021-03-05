@@ -11,5 +11,7 @@ def load(config_file=None):
             config = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
+        except FileNotFoundError as exc:
+            return {}
 
     return config

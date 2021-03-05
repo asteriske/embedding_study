@@ -1,4 +1,7 @@
+import logging
 import os
+import sys
+
 from testw2v import config, experiment, util
 from testw2v.skipgram_google import skipgram_experiment
 
@@ -50,11 +53,22 @@ experiments = {
          'run_conf': conf['experiments']['skipgramv2_google_small_batch_long_seq']},
      'skipgramv2_google_small_batch_low_iter': {
          'exp_class': skipgram_experiment.SkipgramV2GoogleExperiment,
-         'run_conf': conf['experiments']['skipgramv2_google_small_batch_low_iter']}
+         'run_conf': conf['experiments']['skipgramv2_google_small_batch_low_iter']},
+     'li_2019_generator': {
+         'exp_class': experiment.Li2019Experiment,
+         'run_conf': conf['experiments']['li_2019_generator']
+     }
 }
     
 def main():
 
+    logger = logging.getLogger()
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(conf['log_level'])
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    stdout_handler.setFormatter(formatter)
+    logger.addHandler(stdout_handler)
 
     if not os.path.exists(conf['file']):
         util.prep_wikitext()
@@ -66,4 +80,4 @@ def main():
         
         metrics[run] = runner(**experiments[run])
 
-    # util.write_metrics(path=conf['metrics_path'], metrics=metrics)
+    util.write_metrics(path=conf['metrics_path'], metrics=metrics)
