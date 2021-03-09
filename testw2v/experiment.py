@@ -202,19 +202,9 @@ class Li2019Experiment(Experiment):
 
         positive_matrix, negative_matrix, vocab = li2019.build_context_matrices(self.file, self.conf)
 
-        example_generator = li2019.example_iterator_gen(positive_matrix, negative_matrix, self.conf)
+        self.dataset = li2019.build_pos_neg_generators(positive_matrix, negative_matrix, self.conf)
 
-        self.dataset = (
-            tf.data.Dataset.from_generator(example_generator,
-                                   output_signature=(
-                                       (tf.TensorSpec(shape=(vocab_size*(num_ns+1),1),dtype=tf.int32),
-                                        tf.TensorSpec(shape=(vocab_size*(num_ns+1),1),dtype=tf.int32)),
-                                        tf.TensorSpec(shape=(vocab_size*(num_ns+1),1),dtype=tf.int32)
-                                   ))
-            .unbatch()
-            .batch(vocab_size)
-            .prefetch(AUTOTUNE)
-        )
+
         self.vocab = vocab
 
 

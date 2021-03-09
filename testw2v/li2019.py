@@ -10,6 +10,8 @@ from tensorflow.keras import Model
 from tensorflow.keras.layers import Dot, Embedding, Flatten
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 
+AUTOTUNE = tf.data.experimental.AUTOTUNE
+
 logger = logging.getLogger(__name__)
 def custom_standardization(input_data):
     lowercase = tf.strings.lower(input_data)
@@ -110,47 +112,57 @@ def build_context_matrices(file: str, conf: Dict[str, Any]) -> Tuple[np.array, n
     return context_matrix, negative_context_matrix, vectorize_layer.get_vocabulary()
 
 
-def example_iterator_gen(positive_matrix: np.array, negative_matrix: np.array, conf) -> Generator[Tuple[tf.constant, tf.constant, tf.constant], None, None]:
-    num_pos_columns = conf['num_pos_columns']
-    num_neg_columns = conf['num_neg_columns']
+def build_pos_neg_generators(positive_matrix: np.ndarray, negative_matrix: np.ndarray, conf: Dict[str,Any]) -> tf.data.Dataset:
+
+    positive_t = tf.transpose(tf.constant(positive_matrix))
+    negative_t = tf.transpose(tf.constant(negative_matrix))
+
+    def pos_generator():
+    
+        VOCAB = tf.expand_dims(tf.range(conf['vocab_size']),1)
+        ONES = tf.ones((conf['vocab_size'],1))
+        
+        for i in range(conf['num_pos_columns']):
+            yield (
+                (VOCAB,
+                tf.expand_dims(tf.nn.embedding_lookup(positive_t,i),1)),
+                ONES
+            )
+
+    def neg_generator():
+        
+        VOCAB = tf.expand_dims(tf.range(conf['vocab_size']),1)
+        ZEROS = tf.zeros((conf['vocab_size'],1))
+
+        for i in range(conf['num_neg_columns']):
+            yield (
+                (VOCAB,
+                tf.expand_dims(tf.nn.embedding_lookup(negative_t,i),1)),
+                ZEROS
+            )
+
     num_ns = conf['num_ns']
     vocab_size = conf['vocab_size']
 
-    def generator_fn():    
-        
-        i = 0
-        while i < num_pos_columns:
-            if i % 1024 == 0:
-                logger.info("Generator iteration: %s\r", i)
-            
-            tgt_ctx_label = (
-                np.array(range(vocab_size)),
-                positive_matrix[:,i],
-                np.ones(vocab_size)
-            )
+    pos_dset = (
+        tf.data.Dataset.from_generator(pos_generator,
+            output_signature=(
+                            (tf.TensorSpec(shape=(vocab_size,1),dtype=tf.int32),
+                            tf.TensorSpec(shape=(vocab_size,1),dtype=tf.int32)),
+                            tf.TensorSpec(shape=(vocab_size,1),dtype=tf.int32)
+                            ))
+    )        
+    neg_dset = (
+        tf.data.Dataset.from_generator(neg_generator,
+            output_signature=(
+                            (tf.TensorSpec(shape=(vocab_size,1),dtype=tf.int32),
+                            tf.TensorSpec(shape=(vocab_size,1),dtype=tf.int32)),
+                            tf.TensorSpec(shape=(vocab_size,1),dtype=tf.int32)
+                            ))
+        .repeat(num_ns)
+    )
 
-            # We expect the negative matrix to be somewhat smaller than the 
-            # positive matrix, so we'll loop over the negative several times
-            # while iterating through the positive
-            neg_start_idx = i*num_ns
-            neg_end_idx = (i+1)*num_ns
-            neg_indices = [x % num_neg_columns for x in range(neg_start_idx, neg_end_idx)]
-            
-            negative_ctx_label = (
-                np.tile(np.array(range(vocab_size)),num_ns),
-                negative_matrix[:,neg_indices].flatten('F'), # melt, maintain row order
-                np.zeros(num_ns*(vocab_size))
-            )
-            
-            example = (
-                (tf.constant(np.concatenate([tgt_ctx_label[0], negative_ctx_label[0]]),shape=(vocab_size*(num_ns+1),1)),
-                 tf.constant(np.concatenate([tgt_ctx_label[1], negative_ctx_label[1]]),shape=(vocab_size*(num_ns+1),1))),
-                 tf.constant(np.concatenate([tgt_ctx_label[2], negative_ctx_label[2]]),shape=(vocab_size*(num_ns+1),1)),
-            )
-            yield example
-            i+=1 
-
-    return generator_fn
+    return tf.data.experimental.sample_from_datasets([pos_dset, neg_dset], weights=[(1/(num_ns+1)),(num_ns/(num_ns+1))]).prefetch(AUTOTUNE)
 
 
 class Word2Vec(Model):
@@ -191,7 +203,6 @@ def generator_training_loop(model: Word2Vec, dataset: tf.data.Dataset, conf: Dic
     num_pos_columns = conf['num_pos_columns']
     num_ns = conf['num_ns']
 
-    dataset_iter = iter(dataset)
     num_steps = num_pos_columns * (num_ns + 1)
 
     optimizer = tf.keras.optimizers.Adam()
@@ -201,9 +212,10 @@ def generator_training_loop(model: Word2Vec, dataset: tf.data.Dataset, conf: Dic
 
     for epoch in range(1, n_epochs+1):
         logger.info("epoch{}/{}".format(epoch, n_epochs))
+        step = 0
 
-        for step in range(num_steps):
-            (X_batch, y_batch) = dataset_iter.get_next()
+        for (X_batch, y_batch) in dataset:
+            step += 1
 
             left_words, right_words = X_batch
 
