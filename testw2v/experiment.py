@@ -1,16 +1,21 @@
 import datetime
 import gensim
 import json
+import logging
 import os
 import tensorflow as tf
-from testw2v import config, google_example, gensim_utils, li2019, util
+from testw2v import config, google_example, gensim_utils, li2019, util 
+from testw2v.hash_embedding import hash_embedding_experiment
 from typing import Any, Dict
 conf = config.load()
+
+
 
 class Experiment():
 
     def __init__(self, file: str, conf: Dict[str, Any]=None):
-        pass
+        logging.info(self.__name__)
+        # pass
 
     def build_dataset(self):
         raise NotImplementedError
@@ -225,3 +230,43 @@ class Li2019Experiment(Experiment):
         gensim_obj = gensim_utils.w2v_to_gensim(self.vocab, weights)
 
         self.metrics = gensim_utils.metrics(gensim_obj)
+
+
+class HashEmbeddingExperiment(Experiment):
+
+    def __init__(self, file: str, conf: Dict[str, Any]=None, no_op: bool=False):
+
+        self.file = file
+        self.conf = conf
+
+        super(HashEmbeddingExperiment).__init__()
+
+        if not no_op:
+            self.run_all()
+
+
+    def build_dataset(self):
+
+        self.dataset, self.vocab = hash_embedding_experiment.build_dataset(self.file, self.conf)
+
+
+    def build_model(self):
+
+        word2vec = hash_embedding_experiment.Word2Vec(num_words=self.conf['he_importance_vector_params'], 
+                                                      embedding_width=self.conf['embedding_dim'], 
+                                                      num_hash_buckets=self.conf['he_num_hash_buckets'], 
+                                                      num_hash_func=self.conf['he_num_hash_func'])
+        word2vec.compile(optimizer='adam',
+                  loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
+                  metrics=['accuracy'])
+
+        self.model = word2vec
+
+    
+    def fit(self):
+
+        self.model.fit(self.dataset)
+
+    def eval(self):
+
+        self.metrics = hash_embedding_experiment.eval(self.model, self.vocab)
