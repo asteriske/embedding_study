@@ -265,7 +265,11 @@ class HashEmbeddingExperiment(Experiment):
     
     def fit(self):
 
+<<<<<<< HEAD
         self.model.fit(self.dataset, epochs=self.conf['epochs'])
+=======
+        self.model.fit(self.dataset)
+>>>>>>> 0379400d11dcdbccae0c54d9b8317e3af7e96f7f
 
     def eval(self):
 
