@@ -56,8 +56,10 @@ experiments = {
          'run_conf': conf['experiments']['skipgramv2_google_small_batch_low_iter']},
      'li_2019_generator': {
          'exp_class': experiment.Li2019Experiment,
-         'run_conf': conf['experiments']['li_2019_generator']
-     }
+         'run_conf': conf['experiments']['li_2019_generator']},
+     'skipgramv2_hash_emb': {
+         'exp_class': experiment.HashEmbeddingExperiment,
+         'run_conf': conf['experiments']['skipgramv2_hash_emb']}     
 }
     
 def main():

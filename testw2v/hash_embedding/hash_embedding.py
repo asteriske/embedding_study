@@ -47,10 +47,10 @@ class HashEmbedding(tf.keras.layers.Layer):
         for i in range(self.num_hash_func):
             values_tensor = tf.random.uniform(shape=[self.num_words],
                 minval=0,
-                maxval=(2**16)-1,
+                maxval=(2**30)-1,
                 dtype=tf.int32)
-            keys_tensor = tf.squeeze(tf.where(values_tensor))
-            
+            # keys_tensor = tf.squeeze(tf.where(values_tensor))
+            keys_tensor = tf.range(self.num_words, dtype=tf.int32) 
             self.hash_tables.append(
                 StaticHashTable(
                     initializer=KeyValueTensorInitializer(
@@ -84,7 +84,7 @@ class HashEmbedding(tf.keras.layers.Layer):
 
     def call(self, X):
 
-        word_ids_to_hash_space = tf.cast(X % self.num_words,tf.int64)
+        word_ids_to_hash_space = tf.cast(X % self.num_words,tf.int32)
 
         # We make sure the importance has a different id than the words. This way
         # if the words collide, the importances will not and we "lose" once, not twice.

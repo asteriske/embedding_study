@@ -162,6 +162,20 @@ experiments:
     window_size: 4
     vocab_size: 4096
 
+  skipgramv2_hash_emb:
+    batch_size: 64
+    buffer_size: 10000
+    embedding_dim: 20 
+    epochs: 5 
+    he_num_hash_buckets: 100000
+    he_num_hash_func: 2
+    he_importance_vector_params: 1000000
+    num_ns: 7 
+    pos_sample_threshold: 0.001
+    seed: 42
+    sequence_length: 200
+    window_size: 4
+    vocab_size: 4096
 
   google_news:
     file: null
@@ -169,10 +183,10 @@ experiments:
     google_news_url: 'https://s3.amazonaws.com/dl4j-distribution/GoogleNews-vectors-negative300.bin.gz'
 
 
-file: 'wiki_1pct'
+file: 'wiki_10pct'
 file_uri: 'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
-runs: ['li_2019_generator', 'skipgramv2_google_small_batch_long_seq', 'gensim_default', 'google_default' ]
+runs: ['skipgramv2_hash_emb', 'gensim_default', 'google_default' ]
 
 metrics_path: 'metrics'
 log_level: 'INFO'
