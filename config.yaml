@@ -186,7 +186,7 @@ experiments:
 file: 'wiki_10pct'
 file_uri: 'https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip'
 
-runs: ['skipgramv2_hash_emb', 'gensim_default', 'google_default' ]
+runs: ['skipgramv2_hash_emb', 'skipgramv2_google_small_batch_long_seq','gensim_default', 'google_default' ]
 
 metrics_path: 'metrics'
 log_level: 'INFO'
