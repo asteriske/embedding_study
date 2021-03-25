@@ -43,6 +43,7 @@ def row_to_contexts(row: np.array, context_dict: Dict[str, Any], window_size: in
         for item in contexts:
             context_dict[word].append(item)                    
 
+
 def build_context_matrices(file: str, conf: Dict[str, Any]) -> Tuple[np.array, np.array, List[str]]:
 
     logger.info("Beginning context matrix build...")

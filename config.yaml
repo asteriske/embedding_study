@@ -177,6 +177,25 @@ experiments:
     window_size: 4
     vocab_size: 4096
 
+  moti:
+    batch_size: 128
+    embedding_dim: 128
+
+    epochs: 5
+    # he_num_hash_buckets == embedding_space
+    he_num_hash_buckets: 250000
+    embedding_space: 250000
+
+    # num_ns == negative_samples
+    num_ns: 64
+    negative_samples: 64
+
+    # he_importance_vector_params == vocab_size
+    he_importance_vector_params: 2500000
+    vocab_size: 2500000
+    window_size: 2
+
+
   google_news:
     file: null
     params: null

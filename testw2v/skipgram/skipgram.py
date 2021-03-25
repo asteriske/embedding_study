@@ -34,8 +34,6 @@ def build_preprocess_vocab(file, preprocessing_fn, limit=None):
     return kept_words_and_counts, total_words_sum, kept_words_sum
 
 
-
-
 class Skipgram():
     """
     This function produces skipgrams for Word2Vec as defined in `https://www.tensorflow.org/tutorials/text/word2vec`.
@@ -258,6 +256,7 @@ class Skipgram():
         return target, features, labels
         # return positive_skipgrams, negative_skipgrams
         # return positive_skipgrams
+
 
 class SkipgramV2():
 
