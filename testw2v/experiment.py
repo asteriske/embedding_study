@@ -252,10 +252,13 @@ class HashEmbeddingExperiment(Experiment):
 
     def build_model(self):
 
-        word2vec = hash_embedding_experiment.Word2Vec(num_words=self.conf['he_importance_vector_params'], 
+        word2vec = hash_embedding_experiment.Word2Vec(vocab=self.vocab,
+                                                      batch_size=self.conf['batch_size'],
                                                       embedding_width=self.conf['embedding_dim'], 
+                                                      num_words=self.conf['he_importance_vector_params'], 
                                                       num_hash_buckets=self.conf['he_num_hash_buckets'], 
-                                                      num_hash_func=self.conf['he_num_hash_func'])
+                                                      num_hash_func=self.conf['he_num_hash_func'],
+                                                      num_negative=self.conf['num_ns'])
         word2vec.compile(optimizer='adam',
                   loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])

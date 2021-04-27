@@ -163,7 +163,7 @@ experiments:
     vocab_size: 4096
 
   skipgramv2_hash_emb:
-    batch_size: 64
+    batch_size: 4096 
     buffer_size: 10000
     embedding_dim: 20 
     epochs: 5 

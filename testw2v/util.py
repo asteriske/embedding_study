@@ -42,7 +42,7 @@ def simple_download(uri, destination):
     urllib.request.urlretrieve(uri, destination)
 
 
-def prep_wikitext():
+def prep_wikitext(pct=10):
     simple_download('https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-103-v1.zip','wikitext-103-v1.zip')
     
     with zipfile.ZipFile('wikitext-103-v1.zip', 'r') as zip_obj:
@@ -54,8 +54,8 @@ def prep_wikitext():
                 pass
 
         with open('wikitext-103/wiki.train.tokens','r') as source_file:
-            with open('wiki_10pct','w') as dest_file:
+            with open('wiki_pct','w') as dest_file:
                 for i, line in enumerate(source_file.readlines()):
                     dest_file.write(line)
-                    if i > round(num_line/10.0):
+                    if i > round(num_line/float(pct)):
                         break

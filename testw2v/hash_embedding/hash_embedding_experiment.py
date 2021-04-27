@@ -14,80 +14,181 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
 class Word2Vec(tf.keras.Model):
-  def __init__(self, embedding_width, num_words=1024, num_hash_buckets=2**20, num_hash_func=3):
-    super(Word2Vec, self).__init__()
+    
+    def __init__(self, 
+        vocab: Dict[int,int],
+        batch_size: int=64,
+        embedding_width: int=20, 
+        num_words: int=int(1e6), 
+        num_hash_buckets: int=int(1e5), 
+        num_hash_func: int=2, 
+        num_negative: int=4,                    
+        ):
 
-    self.target_embedding = HashEmbedding(num_hash_func=num_hash_func, 
+        super(Word2Vec, self).__init__()
+
+        self.batch_size            = batch_size
+        self.num_hash_buckets      = num_hash_buckets
+        self.num_negative          = num_negative
+        self.num_words             = num_words
+        self.vocab = vocab
+        self.negative_distribution = self._vocab_to_negative_dist()
+
+
+        self.target_embedding = HashEmbedding(
+            num_hash_func=num_hash_func, 
             num_words=num_words, 
-            num_hash_buckets=num_hash_buckets, # ~1MM 
+            num_hash_buckets=num_hash_buckets, 
             embedding_width=embedding_width, 
             random_seed=1139, 
             name="w2v_target_embedding") 
- 
-    self.context_embedding = HashEmbedding(num_hash_func=num_hash_func, 
-            num_words=num_words, 
-            num_hash_buckets=num_hash_buckets, # ~1MM 
-            embedding_width=embedding_width, 
+
+        self.context_embedding = HashEmbedding(
+            num_hash_func=num_hash_func, 
+            num_words=num_words,               # K ~ 2.5MM 
+            num_hash_buckets=num_hash_buckets, # B ~ 250k
+            embedding_width=embedding_width,   # d ~ 20 
             random_seed=1139, 
             name="w2v_context_embedding") 
- 
-    self.dots = tf.keras.layers.Dot(axes=(3,2),dtype=tf.float32) 
-    self.flatten = tf.keras.layers.Flatten() 
- 
- 
-  def call(self, pair): 
-    target, context = pair 
-    we = self.target_embedding(target) 
-    ce = self.context_embedding(context) 
-    dots = self.dots([ce, we]) 
-    return self.flatten(dots)
+
+        self.dots = tf.keras.layers.Dot(axes=(2,2), dtype=tf.float32) 
+        self.flatten = tf.keras.layers.Flatten() 
+
+
+    def call(self, pair): 
+        
+        target, context = pair
+        
+        we = self.target_embedding(
+            self._hash_target(target) )                
+        
+        ce = self.context_embedding(
+            self._prep_context(context) )
+        
+        dots = self.dots([ce, we]) 
+        
+        return self.flatten(dots)
+
+
+    def _vocab_to_negative_dist(self, power=tf.constant(.75, dtype=tf.float32)):
+        """
+        """
+
+        freqs = [self.vocab[x] for x in range(max(self.vocab.keys())+1)]
+
+        raised_to_power = tf.math.pow(tf.cast(freqs, dtype=tf.float32), power)
+
+        dist = raised_to_power + 1.0#/ tf.reduce_sum(raised_to_power)
+
+        return tf.cast(dist, tf.int64).numpy().tolist()
 
     
-def build_dataset(file, conf):
+    def _hash_target(self, x):
+        # function D_1
+        hashed_values = tf.strings.to_hash_bucket_fast(x, self.num_words)
+        
+        return hashed_values
 
-    # I want to use the preprocessing function from a TextVectorization
-    # layer like the one we're going to use later. The TextVectorization
-    # object only assigns a function among many when it initializes the 
-    # class, so I'll just make one, extract the function, and throw it out.
-    _throwaway_vectorize_layer = TextVectorization(standardize=common.custom_standardization)
-    preprocessing_fn = _throwaway_vectorize_layer._preprocess
 
-    words_and_counts, total_words_sum, kept_words_sum = build_preprocess_vocab(file, preprocessing_fn, limit=conf['vocab_size'])
+    def _prep_context(self, x):
+        """
+        TODO: see if masking slows it down much
+        """
 
-    # make room for '' and '[UNK]'
-    word_counts = [0,0]+list(words_and_counts.values())[:-2]
-
-    skipgram = SkipgramV2(window=conf['window_size'],
-        vocab_size=conf['vocab_size'],
-        frequencies=word_counts,
-        num_negative_per_example=conf['num_ns'],
-        sampling_threshold=conf['pos_sample_threshold'])
-
-    vectorize_layer = TextVectorization(
-        standardize=common.custom_standardization,
-        max_tokens=conf['vocab_size'],
-        output_mode='int',
-        output_sequence_length=conf['sequence_length'],
-        vocabulary=list(words_and_counts.keys())[:-2])
+        context_idx = tf.strings.to_hash_bucket_fast(x, self.num_words)
+        
+        negative_samples, _, _ = tf.nn.fixed_unigram_candidate_sampler(
+            true_classes = context_idx,
+            num_true = 1,
+            num_sampled = (self.num_negative * self.batch_size),
+            unique = False,
+            range_max = self.num_words,
+            unigrams = self.negative_distribution
+        )
+        
+        return tf.concat([
+            context_idx, 
+            tf.reshape(negative_samples,(tf.shape(x)[0], self.num_negative))
+            ], axis=1)
+            
     
-    text_vector_ds = (                
-        tf.data.TextLineDataset(file)
-        .filter(lambda x: tf.cast(tf.strings.length(x), bool))
+def group_and_label(target, context, num_ns=4):
+    
+    return ((target, context), tf.constant([1]+[0]*num_ns, dtype=tf.int32))
 
+
+def skipgram_window(target_idx, seq, window):
+    
+    return [(seq[target_idx], seq[j]) 
+            for j in range(max(0,target_idx-window), min(len(seq), target_idx+window)) if j!=target_idx]
+    
+
+def skipgram(seq, window=3):
+    """
+    Stick together lists of lists into a single list
+    """
+    
+    return list(itertools.chain(*[skipgram_window(i, seq, window) for i in range(len(seq))]))                        
+
+
+def line_generator_maker(textfile, window):
+    def line_generator():
+
+        with open(textfile, 'r') as f:
+            for line in f.readlines():
+                sequence = tf.keras.preprocessing.text.text_to_word_sequence(line)
+                for elem in skipgram(sequence, window):
+                    yield elem
+                                
+    return line_generator
+
+
+def build_vocab(file: str) -> Dict[str, int]:
+    
+    dd = collections.defaultdict(int)
+    
+    with open(file,'r') as f:
+        for line in f.readlines():
+            sequence = tf.keras.preprocessing.text.text_to_word_sequence(line)
+            
+            for word in sequence:
+                dd[str(word)] += 1
+                
+    return dd
+ 
+
+def text_vocab_to_hash(text_vocab, num_words) -> Dict[int,int]:
+
+    hash_vocab = collections.defaultdict(int)
+
+    for k in text_vocab.keys():
+        hash_vocab[tf.strings.to_hash_bucket_fast(k, num_words).numpy()] += text_vocab[k] 
+
+    return hash_vocab
+
+
+def build_dataset(file, conf) -> Tuple[tf.data.Dataset, Dict[int,int]]:
+
+    line_gen = line_generator_maker(file)()
+
+    text_vocab = build_vocab(file)
+
+    hash_vocab = text_vocab_to_hash(text_vocab)
+
+    tf_data = (
+        tf.data.Dataset.from_generator(line_gen,
+                                       output_signature=(
+                                           tf.TensorSpec(shape=(), dtype=tf.string),
+                                           tf.TensorSpec(shape=(), dtype=tf.string)
+                                       ))
+    #     .map(lambda x,y: (tf.strings.to_hash_bucket_fast(x, NUM_WORDS),tf.strings.to_hash_bucket_fast(y, NUM_WORDS)))
+        .map(lambda x,y: group_and_label(x,y, conf['num_ns']))
+        .shuffle(int(1e4), reshuffle_each_iteration=True)
         .batch(conf['batch_size'])
-        .map(vectorize_layer)
-        .cache()
-
-        .map(skipgram)
-        .unbatch()
-        .batch(conf['batch_size'], drop_remainder=True)
-
-        .map(lambda x,y,z: common.separate_labels(x,y,z,conf))
-        .shuffle(500, reshuffle_each_iteration=True)
         .prefetch(AUTOTUNE)
     )
 
-    return text_vector_ds, vectorize_layer.get_vocabulary()
+    return tf_data, hash_vocab
 
 
 def eval(model, vocab):
