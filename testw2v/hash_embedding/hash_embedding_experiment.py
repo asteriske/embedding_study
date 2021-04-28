@@ -1,3 +1,5 @@
+import collections
+import itertools
 import numpy as np
 
 import tensorflow as tf
@@ -9,6 +11,8 @@ from testw2v.hash_embedding.hash_embedding import HashEmbedding
 from testw2v.skipgram.skipgram import SkipgramV2, build_preprocess_vocab
 
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
+
+from typing import Dict, Tuple
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -74,7 +78,7 @@ class Word2Vec(tf.keras.Model):
         """
         """
 
-        freqs = [self.vocab[x] for x in range(max(self.vocab.keys())+1)]
+        freqs = [self.vocab[x] for x in range(self.num_words)]
 
         raised_to_power = tf.math.pow(tf.cast(freqs, dtype=tf.float32), power)
 
@@ -169,11 +173,11 @@ def text_vocab_to_hash(text_vocab, num_words) -> Dict[int,int]:
 
 def build_dataset(file, conf) -> Tuple[tf.data.Dataset, Dict[int,int]]:
 
-    line_gen = line_generator_maker(file)()
+    line_gen = line_generator_maker(textfile=file, window=conf['window_size'])
 
     text_vocab = build_vocab(file)
 
-    hash_vocab = text_vocab_to_hash(text_vocab)
+    hash_vocab = text_vocab_to_hash(text_vocab, conf['he_importance_vector_params'])
 
     tf_data = (
         tf.data.Dataset.from_generator(line_gen,
@@ -184,7 +188,7 @@ def build_dataset(file, conf) -> Tuple[tf.data.Dataset, Dict[int,int]]:
     #     .map(lambda x,y: (tf.strings.to_hash_bucket_fast(x, NUM_WORDS),tf.strings.to_hash_bucket_fast(y, NUM_WORDS)))
         .map(lambda x,y: group_and_label(x,y, conf['num_ns']))
         .shuffle(int(1e4), reshuffle_each_iteration=True)
-        .batch(conf['batch_size'])
+        .batch(conf['batch_size'], drop_remainder=True)
         .prefetch(AUTOTUNE)
     )
 
