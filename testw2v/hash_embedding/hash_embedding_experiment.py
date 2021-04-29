@@ -171,26 +171,63 @@ def text_vocab_to_hash(text_vocab, num_words) -> Dict[int,int]:
     return hash_vocab
 
 
+def _parse_function(example_proto):
+
+    feature_desc = {
+        'target': tf.io.FixedLenFeature([],tf.string, default_value=''),
+        'context': tf.io.FixedLenFeature([],tf.string, default_value=''),
+    }
+
+    return (tf.io.parse_single_example(example_proto, feature_desc))
+
+
+def _bytes_feature(value):
+  """Returns a bytes_list from a string / byte."""
+  if isinstance(value, type(tf.constant(0))):
+    value = value.numpy() # BytesList won't unpack a string from an EagerTensor.
+  return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
+
+
+def serialize_example(target, context):
+    feature = {
+        'target': _bytes_feature(target.encode()),
+        'context': _bytes_feature(context.encode())
+    }
+    example_proto = tf.train.Example(features=tf.train.Features(feature=feature))
+    return example_proto.SerializeToString()
+
+
+def write_tfrecord(line_gen):
+    my_lg = line_gen()
+    with tf.io.TFRecordWriter('my.tfrecord') as writer:
+        for i, elem in enumerate(my_lg):
+
+            writer.write(serialize_example(elem[0],elem[1]))
+
+            if i % 500000 == 0:
+                print(f"{i/int(1e6)}MM")
+
+
 def build_dataset(file, conf) -> Tuple[tf.data.Dataset, Dict[int,int]]:
 
     line_gen = line_generator_maker(textfile=file, window=conf['window_size'])
+
+    if conf['write_file']:
+        write_tfrecord(line_gen)
 
     text_vocab = build_vocab(file)
 
     hash_vocab = text_vocab_to_hash(text_vocab, conf['he_importance_vector_params'])
 
     tf_data = (
-        tf.data.Dataset.from_generator(line_gen,
-                                       output_signature=(
-                                           tf.TensorSpec(shape=(), dtype=tf.string),
-                                           tf.TensorSpec(shape=(), dtype=tf.string)
-                                       ))
-    #     .map(lambda x,y: (tf.strings.to_hash_bucket_fast(x, NUM_WORDS),tf.strings.to_hash_bucket_fast(y, NUM_WORDS)))
-        .map(lambda x,y: group_and_label(x,y, conf['num_ns']))
+        tf.data.TFRecordDataset('my.tfrecord')
+        .map(_parse_function)
+        .map(lambda x: group_and_label(x['target'],x['context'], conf['num_ns']))
         .shuffle(int(1e4), reshuffle_each_iteration=True)
         .batch(conf['batch_size'], drop_remainder=True)
         .prefetch(AUTOTUNE)
     )
+
 
     return tf_data, hash_vocab
 

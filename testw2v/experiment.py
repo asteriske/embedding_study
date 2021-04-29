@@ -239,13 +239,16 @@ class HashEmbeddingExperiment(Experiment):
         self.file = file
         self.conf = conf
 
+        if 'write_file' not in self.conf.keys():
+            self.conf['write_file'] = True
+
         super(HashEmbeddingExperiment).__init__()
 
         if not no_op:
             self.run_all()
 
 
-    def build_dataset(self):
+    def build_dataset(self):    
 
         self.dataset, self.vocab = hash_embedding_experiment.build_dataset(self.file, self.conf)
 
@@ -259,7 +262,7 @@ class HashEmbeddingExperiment(Experiment):
                                                       num_hash_buckets=self.conf['he_num_hash_buckets'], 
                                                       num_hash_func=self.conf['he_num_hash_func'],
                                                       num_negative=self.conf['num_ns'])
-        word2vec.compile(optimizer='adam',
+        word2vec.compile(optimizer='adamax',
                   loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
                   metrics=['accuracy'])
 
